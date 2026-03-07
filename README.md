@@ -63,7 +63,6 @@ Parameter scale evolution strongly correlates with warmup and decay phases, rein
 
 ## Selected Figures
 
-(Place your key figures in the `figures/` folder and reference them here.)
 
 ### Baseline Training Dynamics
 ![Baseline Loss](figures/baseline_loss.png)
