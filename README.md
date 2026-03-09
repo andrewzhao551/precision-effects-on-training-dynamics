@@ -61,27 +61,144 @@ Parameter scale evolution strongly correlates with warmup and decay phases, rein
 
 ---
 
-## Selected Figures
+# 🔬 Selected Figures and Empirical Findings
 
+---
 
-### Baseline Training Dynamics (BF16 Reference)
+## 1️⃣ Baseline Training Dynamics (BF16 Reference)
 
 ![Baseline Training Dynamics](figures/baseline_training_dynamics.png)
 
-**Observation:** Under BF16, loss, gradient norm, and weight norm evolve smoothly and consistently with the learning rate schedule.
+**Observation.**  
+Under BF16 precision, loss, gradient norm, and weight norm evolve smoothly and consistently with the learning rate schedule.
 
-**Interpretation:** This panel establishes a reference optimization trajectory. Subsequent precision perturbations will be compared against this baseline to identify deviations in dynamics beyond nominal behavior.
+**Interpretation.**  
+This establishes a stable optimization reference trajectory.  
+All subsequent precision perturbations (FP8) are evaluated relative to this baseline to isolate deviations in:
 
-### Multi-layer MoE Quantization
-![MoE Comparison](figures/moe_comprehensive_comparison.png)
-![MoE Comparison](figures/moe_angle_comparison_between_bf16_fp8.png)
-![MoE Comparison](figures/moe_relative_errors_between_bf16_fp8.png)
+- convergence path  
+- gradient geometry  
+- parameter scale evolution  
 
-### Multi-layer MHA Quantization
-![MHA Comparison](figures/mha_comprehensive_comparison.png)
-![MHA Comparison](figures/mha_angle_comparison_between_bf16_fp8.png)
-![MHA Comparison](figures/mha_relative_errors_between_bf16_fp8.png)
+---
 
+# 2️⃣ Multi-layer MoE Quantization (FP8)
+
+---
+
+### (a) Optimization Trajectory Comparison
+
+![MoE Comprehensive](figures/moe_comprehensive_comparison.png)
+
+**Key Insight.**
+
+- Loss remains close to BF16.
+- Gradient norm magnitude remains stable.
+- Gradient deviation accumulates progressively over iterations.
+
+This suggests FP8 introduces structural gradient perturbations, even when scalar metrics (e.g., loss) appear stable.
+
+---
+
+### (b) Gradient Direction Shift
+
+![MoE Angle](figures/moe_angle_comparison_between_bf16_fp8.png)
+
+**Key Insight.**
+
+The gradient vector angle between FP8 and BF16 increases steadily during training.
+
+This indicates:
+
+- Optimization trajectories gradually diverge.
+- Perturbations manifest geometrically rather than purely in magnitude.
+
+MoE layers exhibit moderate sensitivity under reduced precision.
+
+---
+
+### (c) Relative Error Evolution
+
+![MoE Relative Error](figures/moe_relative_errors_between_bf16_fp8.png)
+
+**Key Insight.**
+
+- Loss relative error remains small.
+- Gradient difference norm increases significantly.
+
+This decoupling suggests:
+
+> Loss alone is insufficient to detect instability; gradient-based metrics are more sensitive indicators of precision-induced perturbations.
+
+---
+
+# 3️⃣ Multi-layer MHA Quantization (FP8)
+
+---
+
+### (a) Optimization Trajectory Comparison
+
+![MHA Comprehensive](figures/mha_comprehensive_comparison.png)
+
+**Key Insight.**
+
+- Loss remains stable.
+- Gradient deviation increases more rapidly compared to MoE.
+- Structural perturbation appears stronger in attention layers.
+
+This indicates that MHA layers may be more sensitive to quantization noise.
+
+---
+
+### (b) Gradient Direction Shift
+
+![MHA Angle](figures/mha_angle_comparison_between_bf16_fp8.png)
+
+**Key Insight.**
+
+Gradient angle deviation grows faster than in MoE experiments.
+
+This suggests attention layers exhibit higher geometric sensitivity under reduced precision.
+
+---
+
+### (c) Relative Error Evolution
+
+![MHA Relative Error](figures/mha_relative_errors_between_bf16_fp8.png)
+
+**Key Insight.**
+
+Relative gradient error accumulates steadily over training.
+
+This supports the hypothesis that:
+
+> Structural components (e.g., attention mechanisms) may amplify low-precision perturbations more than MoE feed-forward structures.
+
+---
+
+# 📌 Cross-Module Comparison Summary
+
+| Component | Loss Stability | Gradient Magnitude | Gradient Direction Drift | Sensitivity |
+|------------|---------------|-------------------|---------------------------|-------------|
+| MoE | Stable | Stable | Moderate | Medium |
+| MHA | Stable | Stable | Larger | Higher |
+
+---
+
+# 🔍 Discussion
+
+These experiments suggest that reduced precision primarily perturbs:
+
+- Gradient geometry  
+- Optimization trajectory alignment  
+
+rather than immediate scalar loss behavior.
+
+This implies that:
+
+> Training dynamics analysis provides earlier and more sensitive instability signals than loss curves alone.
+
+From an ML systems perspective, this work emphasizes that numerical precision affects not only convergence outcomes, but also the geometric structure of optimization trajectories.
 
 
 ---
