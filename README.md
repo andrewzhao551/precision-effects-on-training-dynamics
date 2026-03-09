@@ -68,13 +68,16 @@ Parameter scale evolution strongly correlates with warmup and decay phases, rein
 ![Baseline Loss](figures/baseline_training_dynamics.png)
 
 ### Multi-layer MoE Quantization
-![MoE Comparison](figures/moe_comparison.png)
+![MoE Comparison](figures/moe_comprehensive_comparison.png)
+![MoE Comparison](figures/moe_angle_comparison_between_bf16_fp8.png)
+![MoE Comparison](figures/moe_relative_errors_between_bf16_fp8.png)
 
 ### Multi-layer MHA Quantization
-![MHA Comparison](figures/mha_comparison.png)
+![MHA Comparison](figures/mha_comprehensive_comparison.png)
+![MHA Comparison](figures/mha_angle_comparison_between_bf16_fp8.png)
+![MHA Comparison](figures/mha_relative_errors_between_bf16_fp8.png)
 
-### Gradient Deviation vs Precision
-![Relative Error](figures/relative_error.png)
+
 
 ---
 
