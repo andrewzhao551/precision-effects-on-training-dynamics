@@ -64,8 +64,13 @@ Parameter scale evolution strongly correlates with warmup and decay phases, rein
 ## Selected Figures
 
 
-### Baseline Training Dynamics
-![Baseline Loss](figures/baseline_training_dynamics.png)
+### Baseline Training Dynamics (BF16 Reference)
+
+![Baseline Training Dynamics](figures/baseline_training_dynamics.png)
+
+**Observation:** Under BF16, loss, gradient norm, and weight norm evolve smoothly and consistently with the learning rate schedule.
+
+**Interpretation:** This panel establishes a reference optimization trajectory. Subsequent precision perturbations will be compared against this baseline to identify deviations in dynamics beyond nominal behavior.
 
 ### Multi-layer MoE Quantization
 ![MoE Comparison](figures/moe_comprehensive_comparison.png)
