@@ -65,7 +65,7 @@ Parameter scale evolution strongly correlates with warmup and decay phases, rein
 
 
 ### Baseline Training Dynamics
-![Baseline Loss](figures/baseline_loss.png)
+![Baseline Loss](figures/Baseline training dynamics.png)
 
 ### Multi-layer MoE Quantization
 ![MoE Comparison](figures/moe_comparison.png)
