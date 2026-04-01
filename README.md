@@ -1,249 +1,228 @@
 # Precision Effects on Training Dynamics
 
-An empirical investigation into how reduced numerical precision influences optimization trajectories and stability signals in LLM training.
+**Zhao Chenran, The Chinese University of Hong Kong, Shenzhen**
+
+This repository documents my ongoing research on how **FP8 activation quantization** changes training dynamics in a sparse large language model, with a focus on **DeepSeek-MoE-2B** under controlled checkpoint-based BF16/FP8 comparison.
+
+The current March update is not centered on benchmark accuracy or downstream evaluation. Instead, it studies how reduced precision changes:
+
+- loss-level alignment,
+- gradient perturbation magnitude,
+- relative error over training,
+- module-dependent sensitivity,
+- and the redistribution of perturbation across parameters.
 
 ---
 
-## Author
+## March 2026 Update: Main Questions
 
-Zhao Chenran  
-The Chinese University of Hong Kong, Shenzhen
+This phase of the project is organized around four empirical questions:
 
----
+1. **Module sensitivity**  
+   Do **MoE** and **Attention** respond differently to the same FP8 activation quantization strategy?
 
-## Overview
-Low-precision training (e.g., FP8) is increasingly adopted for efficiency in large-scale models.  
+2. **Depth sensitivity**  
+   How different are **single-layer quantization** and **continuous multi-layer quantization (layers 0–8)**?
 
-While convergence is typically evaluated using final loss, less attention is paid to how reduced precision alters the *optimization trajectory itself*.
+3. **Format sensitivity**  
+   Does **E4M3** stay better aligned with BF16 than **E5M2**?
 
-This repository documents an ongoing empirical study of how reduced numerical precision affects training dynamics in DeepSeek-MoE models.
-
-Rather than focusing on final benchmark performance, this project examines how reduced precision changes:
-
-- gradient magnitude,
-- gradient direction,
-- trajectory-level deviation from BF16 reference behavior,
-- and the visibility of early instability signals.
-
-The central motivation is that loss alone may not be sufficient to characterize numerical stability during low-precision training.
+4. **Perturbation redistribution**  
+   If the final loss remains well aligned, does the perturbation still migrate across parameters and modules during training?
 
 ---
 
-## Research Questions
+## Model and Training Context
 
-This project is organized around the following questions:
+All current results are based on **DeepSeek-MoE-2B**.
 
-1. How do FP8 formats (E4M3 / E5M2) differ from BF16 in optimization dynamics?
-2. Does multi-layer activation quantization introduce cumulative trajectory shift?
-3. Are gradient-based metrics more sensitive than loss in detecting precision-induced deviation?
-4. Do different structural components (MoE vs Attention) respond differently to reduced precision?
+### Base training setup
+- **Model:** DeepSeek-MoE-2B
+- **Training precision:** BF16
+- **Optimizer:** AdamW
+- **Hardware:** 4 × A100 80GB
+- **Parallelism:** DDP
+- **Dataset:** C4 English
+- **Training horizon shown here:** checkpoints from iter 0 to iter 10000
 
----
+### Quantization protocol
+- **Quantization target:** activations only
+- **Weights:** kept in BF16
+- **Optimizer state:** kept in FP32
+- **Formats:** FP8 E4M3, FP8 E5M2
+- **Locations:** MoE final outputs, Attention final outputs
+- **Depth settings:** layer-0 only, or continuous quantization across layers 0–8
 
-## Experimental Scope
+### Evaluation protocol
+For each baseline checkpoint, BF16 and FP8 are evaluated on the **same input batch** with matched forward/backward comparison.  
+The main metrics are:
 
-All experiments are conducted on a DeepSeek-MoE architecture.
+- **Loss**
+- **Gradient difference norm** `||grad_fp8 - grad_bf16||`
+- **Relative error**
+- **Weight norm** (baseline reference)
 
-### Numerical formats
-- BF16 (reference baseline)
-- FP8 E4M3
-- FP8 E5M2
-
-### Quantization settings
-- Multi-layer MoE activation quantization
-- Multi-layer Attention (MHA) activation quantization
-
-### Metrics analyzed
-- Loss
-- Gradient norm
-- Gradient direction angle
-- Relative gradient difference norm
-
-### Scope note
-Weight norm is included only in the BF16 baseline panel as a reference for baseline training dynamics.  
-This repository does **not** claim comparative parameter-scale analysis under quantized settings.
+For sparse MoE comparisons, the global gradient difference norm uses a **union-based** construction over parameter sets, with non-activated parameters zero-filled before the global norm is computed.
 
 ---
 
-## Why This Study Matters
+## Current Takeaways
 
-Reduced precision is often evaluated through final convergence quality or efficiency gains.  
-However, two training runs can exhibit similar loss behavior while following meaningfully different optimization trajectories.
+### 1. Module sensitivity is clearly not uniform
+The March results suggest that **Attention** and **MoE** do not exhibit the same perturbation profile under FP8 activation quantization.
 
-This project focuses on that gap:  
-whether reduced precision perturbs training geometry before it visibly changes scalar loss.
+- **Attention** is closer to an **early-strong / later-decaying** pattern.
+- **MoE** is more consistent with a **bounded but persistent nonzero perturbation** pattern.
 
----
+This means the same low-precision rule should not be summarized as a single universal behavior across modules.
 
-# Selected Figures and Empirical Findings
+### 2. E4M3 is generally better aligned with BF16 than E5M2
+Within the current setup, **E4M3** consistently appears more stable than **E5M2**.
 
----
+A cautious reading of the current evidence is:
 
-## 1️⃣ Baseline Training Dynamics (BF16 Reference)
+- **E4M3:** preserves stronger BF16 alignment while keeping perturbations bounded.
+- **E5M2:** often still preserves convergence, but under a noisier optimization regime.
 
-![Baseline Training Dynamics](figures/baseline_training_dynamics.png)
+### 3. Single-layer and multi-layer quantization are not equivalent
+Depth sensitivity is visible, but the visibility depends on the module.
 
-**Observation**
+- On **Attention**, the difference between **layer 0 only** and **layers 0–8** is easier to observe.
+- On **MoE**, single-layer and multi-layer curves can look close under the current global metric, but they are **not identical**. The gap depends on checkpoint and data window.
 
-Under BF16 precision:
+So the correct interpretation is **close-but-not-equal**, not "the same result" and not "later layers do nothing."
 
-- loss decreases smoothly,
-- gradient norm stabilizes after early decay,
-- weight norm evolves consistently with the learning rate schedule.
+### 4. Final loss is not enough
+A recurring pattern in these experiments is that **loss can remain strongly aligned even when gradient-space perturbation is clearly nonzero**.
 
-**Interpretation**
+This is one of the main motivations for tracking:
 
-This panel defines the reference training trajectory used throughout the repository.  
-Subsequent reduced-precision experiments are interpreted relative to this baseline behavior rather than in isolation.
+- gradient difference norm,
+- relative gradient error,
+- and parameter-level perturbation ranking.
 
----
+### 5. Perturbation redistributes across modules during training
+Top-ranked `grad_diff_norm` parameters do not remain permanently localized at the directly quantized output.
 
-## 2️⃣ Multi-layer MoE Quantization (FP8)
+Instead, the dominant contributors shift during training, which is consistent with a **cross-module redistribution** view of precision-induced perturbation.
 
-### (a) Optimization Trajectory Comparison
-
-![MoE Comprehensive](figures/moe_comprehensive_comparison.png)
-
-**Observation**
-
-- Loss remains close to BF16.
-- Gradient norm magnitude remains relatively stable.
-- Gradient deviation accumulates progressively across iterations.
-
-**Interpretation**
-
-This suggests that reduced precision can alter optimization behavior even when scalar loss remains well aligned with baseline.
-
-At minimum, the results indicate that loss alone does not fully characterize the effect of low precision on training dynamics.
+This repository therefore treats low-precision effects as a **training-dynamics problem**, not just a final-loss problem.
 
 ---
 
-### (b) Gradient Direction Shift
+## Selected Figures
 
-![MoE Angle](figures/moe_angle_comparison_between_bf16_fp8.png)
+## 1. MoE, E4M3, layers 0–8: comprehensive comparison
 
-**Observation**
+![MoE E4M3 layers 0-8 comprehensive](figures/moe_e4m3_layers0_8_comprehensive.png)
 
-The angle between FP8 and BF16 gradients increases over training.
-
-**Interpretation**
-
-This indicates gradual directional drift in optimization updates under reduced precision.
-
-In the MoE setting, the perturbation appears cumulative but still compatible with stable loss behavior over the observed training window.
+**Interpretation.**  
+This figure summarizes the most representative multi-layer MoE E4M3 setting in one panel.  
+The loss remains close to BF16, while the perturbation in gradient space stays nonzero and structurally visible across training.
 
 ---
 
-### (c) Relative Error Evolution
+## 2. MoE, E4M3, layer 0 only: loss comparison
 
-![MoE Relative Error](figures/moe_relative_errors_between_bf16_fp8.png)
+![MoE E4M3 layer 0 loss](figures/moe_e4m3_layer0_loss.png)
 
-**Observation**
-
-- Loss relative error remains small.
-- Relative gradient deviation becomes substantially larger.
-
-**Interpretation**
-
-This decoupling suggests that gradient-based metrics provide more sensitive evidence of precision-induced deviation than loss curves alone.
+**Interpretation.**  
+Single-layer MoE quantization does not materially break loss alignment in the current setting.  
+This makes it a useful low-perturbation reference when compared with deeper quantization.
 
 ---
 
-## 3️⃣ Multi-layer Attention (MHA) Quantization (FP8)
+## 3. MoE, E4M3, layer 0 only: gradient difference norm
 
-### (a) Optimization Trajectory Comparison
+![MoE E4M3 layer 0 grad diff norm](figures/moe_e4m3_layer0_grad_diff_norm.png)
 
-![MHA Comprehensive](figures/mha_comprehensive_comparison.png)
-
-**Observation**
-
-- Loss remains stable.
-- Gradient deviation grows faster than in the MoE setting.
-
-**Interpretation**
-
-Compared with MoE quantization, attention-layer quantization appears to introduce stronger perturbations into training dynamics.
-
-This does not imply immediate divergence, but it does suggest higher sensitivity of attention modules to reduced precision.
+**Interpretation.**  
+The perturbation is clearly nonzero, but it remains bounded rather than explosively unstable.  
+This is consistent with the broader March observation that MoE perturbations can persist even when the scalar loss stays aligned.
 
 ---
 
-### (b) Gradient Direction Shift
+## 4. MoE, E4M3, layer 0 only: relative error
 
-![MHA Angle](figures/mha_angle_comparison_between_bf16_fp8.png)
+![MoE E4M3 layer 0 relative error](figures/moe_e4m3_layer0_relative_error.png)
 
-**Observation**
-
-Gradient angle deviation increases steadily and reaches larger values than in MoE experiments.
-
-**Interpretation**
-
-This indicates stronger geometric sensitivity in attention modules under FP8 activation quantization.
-
-A plausible interpretation is that structural differences across modules affect how quantization noise accumulates during training.
+**Interpretation.**  
+Loss relative error remains small, while gradient relative error stays visibly nonzero.  
+Again, the key message is that **loss alone under-describes the precision effect**.
 
 ---
 
-### (c) Relative Error Evolution
+## 5. Attention, E5M2, layers 0–8: loss comparison
 
-![MHA Relative Error](figures/mha_relative_errors_between_bf16_fp8.png)
+![Attention E5M2 layers 0-8 loss](figures/attention_e5m2_layers0_8_loss.png)
 
-**Observation**
-
-Relative gradient error accumulates consistently across training.
-
-**Interpretation**
-
-This reinforces the broader pattern that reduced precision perturbs gradient-level behavior more clearly than loss-level behavior.
+**Interpretation.**  
+This figure illustrates a noisier format/module combination.  
+Even when the loss is still convergent and close to BF16 in absolute scale, the deviation profile is visibly less well aligned than in the more stable E4M3 settings.
 
 ---
 
-# Cross-Module Comparison
+## 6. Attention, E5M2, layers 0–8: relative error
 
-| Component | Loss Stability | Gradient Magnitude | Direction Drift | Sensitivity |
-|------------|---------------|-------------------|-----------------|-------------|
-| MoE | Stable | Stable | Moderate | Medium |
-| Attention | Stable | Stable | Larger | Higher |
+![Attention E5M2 layers 0-8 relative error](figures/attention_e5m2_layers0_8_relative_error.png)
 
----
-
-## What Can Be Safely Concluded
-
-Based on the current experiments on DeepSeek-MoE:
-
-- Reduced precision perturbs gradient geometry more clearly than loss behavior.
-- Multi-layer activation quantization introduces cumulative deviation in optimization trajectory.
-- Attention modules appear more sensitive than MoE layers under the tested settings.
-- Gradient-based measurements provide more informative stability signals than loss alone.
-
-These conclusions are empirical and limited to the current experimental setup.
+**Interpretation.**  
+The relative-error view makes the format sensitivity more explicit.  
+Compared with E4M3-based settings in the March study, E5M2 is more consistent with a noisier and less BF16-aligned optimization process.
 
 ---
 
-## What Remains Open
+## 7. Baseline weight norm reference
 
-This repository does **not** claim a complete mechanistic explanation of FP8 instability.
+![Baseline weight norm reference](figures/baseline_weight_norm_reference.png)
 
-Open questions include:
+**Interpretation.**  
+This figure provides the BF16 reference trajectory for parameter-scale evolution over training.  
+It is useful as a baseline context when interpreting perturbation experiments, even though the checkpoint-based quantized evaluations here do not themselves update weights.
 
-- Why can directional drift accumulate while loss remains aligned?
-- What is the relationship between gradient deviation and long-term convergence behavior?
-- How do E4M3 and E5M2 differ structurally beyond scalar error magnitude?
-- How should optimization diagnostics be adapted for reduced-precision training?
+---
+
+## What Changed Relative to the Earlier README
+
+This March update intentionally shifts the repository away from an earlier emphasis on **gradient-angle narratives** and toward a more stable summary based on:
+
+- **loss-level alignment,**
+- **gradient difference norm,**
+- **relative error,**
+- **module sensitivity,**
+- **depth sensitivity,**
+- **format sensitivity,**
+- and **parameter-level perturbation redistribution**.
+
+The current wording is deliberately more conservative:  
+the repository does **not** claim that FP8 directly breaks convergence in this setup.  
+Instead, it shows that FP8 can preserve convergence while still changing optimization behavior in structured, measurable ways.
+
+---
+
+## Current Limitations
+
+The current repository should still be read with the following limits in mind:
+
+- Results are based on **fixed checkpoints** and **fixed evaluation windows**, not full end-to-end retraining under every quantized setting.
+- Some conclusions are **metric-dependent**, especially for sparse MoE under union-based global gradient norms.
+- Parameter-level perturbation migration is currently an **empirical pattern**, not a formal causal proof.
+- The present public repository does not include internal infrastructure, full training code, or unreleased project components.
 
 ---
 
 ## Ongoing Directions
 
-- Deeper comparison of E4M3 vs E5M2
-- More systematic trajectory-level diagnostics
-- Precision-aware optimization adjustments
-- Larger-scale follow-up experiments
+Planned next steps include:
+
+- adding more checkpoint windows and data offsets,
+- extending parameter-level analysis into layer/module-level summaries,
+- testing whether these perturbations correlate with longer-horizon quality or generalization changes,
+- and expanding the study of module-dependent precision sensitivity in sparse architectures.
 
 ---
 
-## Repository Note
+## Repository Scope
 
-This repository is intended as a research presentation artifact rather than a full code release.
-
-It summarizes experimental structure, selected figures, and empirical interpretations from an ongoing project on reduced-precision training dynamics.
+This repository focuses on **empirical training-dynamics evidence** rather than polished benchmark reporting.  
+The goal is to make precision-induced optimization effects visible, measurable, and interpretable in a controlled systems setting.
