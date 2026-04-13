@@ -174,7 +174,7 @@ Compared with E4M3-based settings in the March study, E5M2 is more consistent wi
 
 ## 7. Baseline weight norm reference
 
-![Baseline weight norm reference](figures/baseline_training_dynamic.png)
+![Baseline weight norm reference](figures/baseline_training_dynamics.png)
 
 **Interpretation.**  
 This figure provides the BF16 reference trajectory for parameter-scale evolution over training.  
