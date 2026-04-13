@@ -114,7 +114,7 @@ This repository therefore treats low-precision effects as a **training-dynamics 
 
 ## 1. MoE, E4M3, layers 0–8: comprehensive comparison
 
-![MoE E4M3 layers 0-8 comprehensive](figures/moe_e4m3_layers0_8_comprehensive.png)
+![MoE E4M3 layers 0-8 comprehensive](figures/moe_e4m3_layers0_8_comprehensive.png.png)
 
 **Interpretation.**  
 This figure summarizes the most representative multi-layer MoE E4M3 setting in one panel.  
@@ -124,7 +124,7 @@ The loss remains close to BF16, while the perturbation in gradient space stays n
 
 ## 2. MoE, E4M3, layer 0 only: loss comparison
 
-![MoE E4M3 layer 0 loss](figures/moe_e4m3_layer0_loss.png)
+![MoE E4M3 layer 0 loss](figures/moe_e4m3_layer0_loss.png.png)
 
 **Interpretation.**  
 Single-layer MoE quantization does not materially break loss alignment in the current setting.  
@@ -134,7 +134,7 @@ This makes it a useful low-perturbation reference when compared with deeper quan
 
 ## 3. MoE, E4M3, layer 0 only: gradient difference norm
 
-![MoE E4M3 layer 0 grad diff norm](figures/moe_e4m3_layer0_grad_diff_norm.png)
+![MoE E4M3 layer 0 grad diff norm](figures/moe_e4m3_layer0_grad_diff_norm.png.png)
 
 **Interpretation.**  
 The perturbation is clearly nonzero, but it remains bounded rather than explosively unstable.  
@@ -144,7 +144,7 @@ This is consistent with the broader March observation that MoE perturbations can
 
 ## 4. MoE, E4M3, layer 0 only: relative error
 
-![MoE E4M3 layer 0 relative error](figures/moe_e4m3_layer0_relative_error.png)
+![MoE E4M3 layer 0 relative error](figures/moe_e4m3_layer0_relative_error.png.png)
 
 **Interpretation.**  
 Loss relative error remains small, while gradient relative error stays visibly nonzero.  
@@ -154,7 +154,7 @@ Again, the key message is that **loss alone under-describes the precision effect
 
 ## 5. Attention, E5M2, layers 0–8: loss comparison
 
-![Attention E5M2 layers 0-8 loss](figures/attention_e5m2_layers0_8_loss.png)
+![Attention E5M2 layers 0-8 loss](figures/attention_e5m2_layers0_8_loss.png.png)
 
 **Interpretation.**  
 This figure illustrates a noisier format/module combination.  
@@ -164,7 +164,7 @@ Even when the loss is still convergent and close to BF16 in absolute scale, the 
 
 ## 6. Attention, E5M2, layers 0–8: relative error
 
-![Attention E5M2 layers 0-8 relative error](figures/attention_e5m2_layers0_8_relative_error.png)
+![Attention E5M2 layers 0-8 relative error](figures/attention_e5m2_layers0_8_relative_error.png.png)
 
 **Interpretation.**  
 The relative-error view makes the format sensitivity more explicit.  
